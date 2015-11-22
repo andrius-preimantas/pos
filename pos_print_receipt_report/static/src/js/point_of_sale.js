@@ -73,6 +73,10 @@ openerp.pos_print_receipt_report = function (instance) {
 
         _flush_orders: function(orders, options) {
             var to_ret = PosModelSuper.prototype._flush_orders.call(this, orders, options);
+            options = options || {};
+            if (options.to_invoice) {
+                return to_ret;
+            }
             var self = this;
             var selectedOrder = self.pos_widget.pos.get('selectedOrder');
 
