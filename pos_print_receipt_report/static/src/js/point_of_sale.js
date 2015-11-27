@@ -7,14 +7,16 @@ openerp.pos_print_receipt_report = function (instance) {
         message: _t('Unable to print receipt'),
         comment: _t('Server or internet connection is down. Consider printing receipt directly (hint: on Windows press Ctrl + P)'),
     }
+
+    var receipt_report_xml_id = 'point_of_sale.action_report_pos_receipt';
     var PosModelSuper = instance.point_of_sale.PosModel;
 
     instance.point_of_sale.PosModel = instance.point_of_sale.PosModel.extend({
 
-        _get_receipt_action: function(server_id) {
+        _get_report_action: function(selectedOrder, report_xml_id) {
             return this.pos_widget.do_action(
-                'point_of_sale.action_report_pos_receipt',
-                {additional_context: {active_ids:[server_id]}}
+                report_xml_id,
+                {additional_context: {active_ids:[selectedOrder.server_id], active_model:'pos.order'}}
             )
         },
 
@@ -25,11 +27,11 @@ openerp.pos_print_receipt_report = function (instance) {
             return pos_order;
         },
 
-        get_receipt_report: function(selectedOrder) {
+        get_order_report: function(selectedOrder, report_xml_id) {
             var to_ret = $.Deferred()
 
             if (selectedOrder && selectedOrder.server_id) {
-                var action = this._get_receipt_action(selectedOrder.server_id);
+                var action = this._get_report_action(selectedOrder, report_xml_id);
 
                 action.fail(function() {
                     to_ret.reject()
@@ -45,7 +47,7 @@ openerp.pos_print_receipt_report = function (instance) {
             return to_ret;
         },
 
-        _flush_orders_receipt: function(selectedOrder) {
+        print_pos_report: function(selectedOrder, report_xml_id) {
             var self = this;
             var pos_reference = selectedOrder.attributes.name;
 
@@ -60,7 +62,7 @@ openerp.pos_print_receipt_report = function (instance) {
             order.done(function(order_rec) {
                 if (order_rec) {
                     selectedOrder.server_id = order_rec.id;
-                    return self.get_receipt_report(selectedOrder);
+                    return self.get_order_report(selectedOrder, report_xml_id);
                 } else {
                     var to_ret = $.Deferred()
                     to_ret.reject()
@@ -81,7 +83,7 @@ openerp.pos_print_receipt_report = function (instance) {
             var selectedOrder = self.pos_widget.pos.get('selectedOrder');
 
             return to_ret.then(function () {
-                return self._flush_orders_receipt(selectedOrder);
+                return self.print_pos_report(selectedOrder, receipt_report_xml_id);
             });
         },
     });
@@ -91,7 +93,8 @@ openerp.pos_print_receipt_report = function (instance) {
         print: function() {
             var self = this;
             var selectedOrder = self.pos.get('selectedOrder');
-            self.pos.get_receipt_report(selectedOrder).fail(function() {
+
+            self.pos.get_order_report(selectedOrder, receipt_report_xml_id).fail(function() {
                 self.pos_widget.screen_selector.show_popup('error', error_message);
             });
         },
