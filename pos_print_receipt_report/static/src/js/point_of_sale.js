@@ -20,9 +20,16 @@ openerp.pos_print_receipt_report = function (instance) {
             )
         },
 
-        _get_order_record: function(pos_reference) {
-            pos_order = new instance.web.Model('pos.order').query(['id']).filter(
-                    [['pos_reference', '=', pos_reference]]).first()
+        _get_order_record: function(selectedOrder) {
+            var pos_reference = selectedOrder.attributes.name;
+            if (!pos_reference) {
+                to_ret = $.Deferred();
+                to_ret.resolve();
+                return to_ret;
+            }
+
+            var pos_order = new instance.web.Model('pos.order').query(['id']).filter(
+                    [['pos_reference', '=', pos_reference]]).first();
 
             return pos_order;
         },
@@ -49,15 +56,7 @@ openerp.pos_print_receipt_report = function (instance) {
 
         print_pos_report: function(selectedOrder, report_xml_id) {
             var self = this;
-            var pos_reference = selectedOrder.attributes.name;
-
-            if (!pos_reference) {
-                to_ret = $.Deferred()
-                to_ret.resolve()
-                return to_ret
-            }
-
-            var order = self._get_order_record(pos_reference);
+            var order = self._get_order_record(selectedOrder);
 
             order.done(function(order_rec) {
                 if (order_rec) {
@@ -83,7 +82,17 @@ openerp.pos_print_receipt_report = function (instance) {
             var selectedOrder = self.pos_widget.pos.get('selectedOrder');
 
             return to_ret.then(function () {
-                return self.print_pos_report(selectedOrder, receipt_report_xml_id);
+                var order = self._get_order_record(selectedOrder);
+                return order.done(function(order_rec) {
+                    var to_ret = $.Deferred();
+                    if (order_rec) {
+                        selectedOrder.server_id = order_rec.id;
+                        to_ret.resolve();
+                    } else {
+                        to_ret.reject();
+                    }
+                    return to_ret;
+                });
             });
         },
     });
